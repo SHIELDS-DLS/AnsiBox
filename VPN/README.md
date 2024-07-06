@@ -6,4 +6,4 @@ The players will access to the platform via a VPN file. The software use is Wire
 
 This is a representation of the infrastructure VPN :
 
-![](./infra.)
+![](./images/infra.drawio.pdf)
