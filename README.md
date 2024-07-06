@@ -9,5 +9,7 @@ The image below represent the box present inside the infrastructure and their co
 
 ## Supervision
 
+The goal of the supervision is to watch the server, the box and the services running :
+
 ![](./images/grafana.png)
 
