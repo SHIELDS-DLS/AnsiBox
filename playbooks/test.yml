@@ -1,0 +1,23 @@
+---
+- name: Deploiement et verification d'Apache
+  hosts: 172.16.28.103
+  gather_facts: yes
+
+  tasks:
+    - name: Installation d'Apache
+      become: yes
+      apt:
+        name: apache2
+        state: present
+
+    - name: Demarrage du service Apache
+      become: yes
+      service:
+        name: apache2
+        state: started
+
+    - name: Verification du fonctionnement d'Apache
+      uri:
+        url: "http://localhost"
+        return_content: yes
+      register: apache_response
