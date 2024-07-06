@@ -1,0 +1,194 @@
+#Machine SQL - Injection/Port knocking - SSHSQL
+---
+- name: Installation et Configuration
+ hosts: 192.168.1.6
+ become: true
+
+ tasks:
+   - name: Creer les utilisateurs
+     ansible.builtin.user:
+       name: "{{ item }}"
+     loop:
+       - barneyr
+       - bettyr
+       - chandlerb
+       - fredf
+       - janitor
+       - janitor2
+       - jerrym
+       - joeyt
+       - julied
+       - marym
+       - monicag
+       - phoebeb
+       - rachelg
+       - rossg
+       - scoots
+       - tomc
+       - wilmaf
+
+   - name: Creer l'utilisateur admin
+     ansible.builtin.user:
+       name: admin
+       password: "$6$byQ8uGKvwUdZKsCo$lBD6Z4XIfRoG5NyV36wfDOzjvNFvfuQgwvpZlnLNdT1gwBA.l83pB44Wkg7GFJ7GwgSlsiKy6q4gfF.hNIY3m1"
+       shell: /bin/bash
+     tags:
+       - create_admin_user
+
+   - name: Installer les paquets necessaires
+     apt:
+       name:
+         - apache2
+         - php
+         - mariadb-server
+         - php-mysql
+         - knockd
+         - python3-pip
+         - default-libmysqlclient-dev
+         - libmariadb-dev
+         - iptables
+         - sudo
+         - pkg-config
+         - build-essential
+       state: present
+     tags:
+       - install_packages
+
+   - name: Install python3-venv package
+     apt:
+       name: python3-venv
+       state: present
+     tags:
+       - install_python3_venv
+
+   - name: Create a virtual environment
+     command: python3 -m venv /opt/myenv
+     args:
+       creates: /opt/myenv/bin/activate
+     tags:
+       - create_virtualenv
+
+   - name: Install mysqlclient in virtual environment
+     pip:
+       name: mysqlclient
+       virtualenv: /opt/myenv
+     tags:
+       - install_mysqlclient
+
+   - name: Set ansible_python_interpreter
+     set_fact:
+       ansible_python_interpreter: /opt/myenv/bin/python
+
+   - name: Ajout de l'admin aux sudoers
+     ansible.builtin.lineinfile:
+      path: /etc/sudoers
+      line: "admin ALL=(ALL:ALL) ALL"
+
+   - name: Copier le fichier dumpStaff.sql
+     ansible.builtin.copy:
+       src: /home/ansible/files/SQLPORT/Staff.sql
+       dest: /tmp/Staff.sql
+     tags:
+       - copy_sql_dump
+
+   - name: Copier le fichier dumpUsers.sql
+     ansible.builtin.copy:
+       src: /home/ansible/files/SQLPORT/users.sql
+       dest: /tmp/users.sql
+     tags:
+       - copy_sql_dump
+
+   - name: Creer l'utilisateur dbuser
+     ansible.builtin.mysql_user:
+       name: dbuser
+       host: localhost
+       password: dbuser
+       priv: '*.*:ALL'
+       state: present
+     tags:
+       - create_dbuser
+
+   - name: Importer le dumpStaff.sql dans la base de donnees
+     ansible.builtin.mysql_db:
+       name: Staff
+       state: import
+       target: /tmp/Staff.sql
+     tags:
+       - import_staff_db
+
+   - name: Importer le dumpUsers.sql dans la base de donnees
+     ansible.builtin.mysql_db:
+       name: users
+       state: import
+       target: /tmp/users.sql
+     tags:
+       - import_users_db
+
+   - name: Copier le fichier arch.tar.gz
+     ansible.builtin.copy:
+       src: /home/ansible/files/SQLPORT/arch.tar.gz
+       dest: /tmp/arch.tar.gz
+     tags:
+       - copy_arch_tar
+
+   - name: Extraire le fichier arch.tar.gz dans /var/www/html
+      ansible.builtin.unarchive:
+       src: /tmp/arch.tar.gz
+       remote_src: yes
+       dest: /var/www/html
+       owner: www-data
+       group: www-data
+       mode: '0755'
+       extra_opts: ['--strip-components=1']
+     tags:
+       - extract_arch_tar
+
+   - name: Installer knockd
+     apt:
+       name: knockd
+       state: present
+     tags:
+       - install_packages
+
+   - name: Configurer knockd
+     ansible.builtin.template:
+       src: /home/ansible/files/SQLPORT/knockd.conf
+       dest: /etc/knockd.conf
+     tags:
+       - configure_knockd
+
+   - name: Démarrer knockd
+     ansible.builtin.shell: knockd -d
+     async: 0
+     poll: 0
+     ignore_errors: yes
+     tags:
+       - start_knockd_daemon
+
+   - name: Demarrer et activer le service knockd
+     ansible.builtin.service:
+       name: knockd
+       state: started
+       enabled: yes
+     tags:
+       - start_knockd
+
+   - name: Supprimer le fichier index.html
+     ansible.builtin.file:
+      path: /var/www/html/index.html
+      state: absent
+
+   - name: Redemarrer le service web Apache
+     service:
+      name: apache2
+      state: restarted
+
+   - name: Configurer iptables pour accepter le trafic entrant
+     ansible.builtin.shell: iptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+     tags:
+       - configure_iptables-1
+
+   - name: Configurer iptables pour filtrer le SSH
+     ansible.builtin.shell: iptables -A INPUT -p tcp --dport 22 -j REJECT --reject-with icmp-port-unreachable
+     tags:
+       - configure_iptables-2
