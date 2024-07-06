@@ -1,0 +1,135 @@
+#Machine PHP/Nice
+- name: Configuration du serveur
+ hosts: 192.168.1.4
+ become: true
+
+ tasks:
+   - name: Update APT package index
+     apt:
+       update_cache: yes
+
+   - name: Install lsb-release package
+     apt:
+       name: lsb-release
+       state: present
+
+   - name: Clean APT cache
+     command: apt-get clean all
+
+   - name: Download PHP repository GPG key
+     get_url:
+       url: https://packages.sury.org/php/apt.gpg
+       dest: /etc/apt/trusted.gpg.d/php.gpg
+
+   - name: Add PHP repository
+     apt_repository:
+       repo: "deb https://packages.sury.org/php/ {{ ansible_lsb.codename }} main"
+       state: present
+
+   - name: Installer Apache2, OpenSSH Server et PHP
+     apt:
+       name:
+         - apache2
+         - openssh-server
+         - php7.4
+         - sudo
+       state: present
+     tags:
+       - install_packages
+
+   - name: Modifier le port SSH dans sshd_config
+     lineinfile:
+       path: /etc/ssh/sshd_config
+       regexp: '^Port'
+       line: 'Port 4689'
+     notify: Restart SSH
+     tags:
+       - modify_ssh_port
+
+   - name: Creer l'utilisateur "steven"
+     user:
+       name: steven
+       password: $6$y4jqbyuxBnTSvbyc$7m9zDUXnfGQnKSWx/9ramqq36ODleccxS2v8AkN5ihWi1tU3pM2IjJj5ZMBdhP9cz/ku61GOZxx/unAE9XWfe/
+       shell: /bin/bash
+       state: present
+     tags:
+       - create_user
+
+   - name: Modifier le fichier sudoers
+     ansible.builtin.lineinfile:
+       path: /etc/sudoers
+       line: 'steven   ALL=(ALL:ALL) /bin/nice /notes/*'
+     tags:
+       - modify_sudoers
+
+   - name: Creer le repertoire et les fichiers sous /notes/
+     ansible.builtin.file:
+       path: /notes
+       state: directory
+       owner: root
+       group: root
+       mode: '0755'
+     tags:
+       - create_notes_directory
+
+   - name: Creer le fichier clear.sh sous /notes/
+     ansible.builtin.copy:
+       content: "#!/bin/sh\n/bin/clear"
+       dest: /notes/clear.sh
+       mode: '0755'
+     tags:
+       - create_clear_script
+
+   - name: Creer le fichier id.sh sous /notes/
+     ansible.builtin.copy:
+       content: "#!/bin/sh\nid"
+       dest: /notes/id.sh
+       mode: '0755'
+     tags:
+       - create_id_script
+
+   - name: Copier le contenu du repertoire PHPNice
+     ansible.builtin.copy:
+       src: /home/ansible/files/PHPNice/admin
+       dest: /var/www/html/
+       owner: www-data
+       group: www-data
+       mode: '0755'
+     tags:
+       - copy_files
+
+   - name: Copier le contenu du repertoire PHPNice
+     ansible.builtin.copy:
+       src: /home/ansible/files/PHPNice/capybara.jpg
+       dest: /var/www/html/
+       owner: www-data
+       group: www-data
+       mode: '0755'
+     tags:
+       - copy_files
+
+   - name: Copier le contenu du repertoire PHPNice
+     ansible.builtin.copy:
+       src: /home/ansible/files/PHPNice/index.php
+       dest: /var/www/html/
+       owner: www-data
+       group: www-data
+       mode: '0755'
+     tags:
+       - copy_files
+
+   - name: Supprimer le fichier index.html
+     ansible.builtin.file:
+       path: /var/www/html/index.html
+       state: absent
+
+   - name: Redemarrer le service web Apache
+     service:
+       name: apache2
+       state: restarted
+
+ handlers:
+   - name: Restart SSH
+     ansible.builtin.service:
+       name: ssh
+       state: restarted
