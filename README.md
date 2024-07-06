@@ -4,5 +4,5 @@ Our project involves the automatic deployment via Ansible of "boxes" on which bl
 
 ## The box
 
-![](../images/box.png)
+![](./images/box.png)
 
