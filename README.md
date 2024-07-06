@@ -15,11 +15,13 @@ The goal of the supervision is to watch the server, the box and the services run
 
 ## How use the project ?
 
-If you want to use
+If you want to use the projet, follow this steps :
+
+1. `git clone XXXXXX`
 
 ## Contact
 
-By mail : rettbl@protonmail.com
-By Discord : Rettbl#2970
+* By mail : rettbl@protonmail.com
+* By Discord : Rettbl#2970
 
 This project was created for my last year of study.
