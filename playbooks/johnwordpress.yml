@@ -1,0 +1,166 @@
+#Machine JOHN & Wordpress
+---
+- name: Installation des packages et configuration
+ hosts: 192.168.1.5
+ become: true
+
+ tasks:
+   - name: Update APT package index
+     apt:
+       update_cache: yes
+
+   - name: Install lsb-release package
+     apt:
+       name: lsb-release
+       state: present
+
+   - name: Clean APT cache
+     command: apt-get clean all
+
+    - name: Download PHP repository GPG key
+     get_url:
+       url: https://packages.sury.org/php/apt.gpg
+       dest: /etc/apt/trusted.gpg.d/php.gpg
+
+   - name: Add PHP repository
+     apt_repository:
+       repo: "deb https://packages.sury.org/php/ {{ ansible_lsb.codename }} main"
+       state: present
+
+   - name: Installer les packages de dependances
+     apt:
+       name:
+         - default-libmysqlclient-dev
+         - libmariadb-dev
+         - mariadb-server
+         - php-mysql
+         - apache2
+         - php7.4
+         - php7.4-mysql
+         - pkg-config
+         - build-essential
+         - sudo
+       state: present
+     tags:
+       - install_mysql_dev_packages
+
+   - name: Installer python3-pip
+     apt:
+       name: python3-pip
+       state: present
+     tags:
+       - install_python3_pip
+
+   - name: Install python3-venv package
+     apt:
+       name: python3-venv
+       state: present
+     tags:
+       - install_python3_venv
+
+   - name: Create a virtual environment
+     command: python3 -m venv /opt/myenv
+     args:
+       creates: /opt/myenv/bin/activate
+     tags:
+       - create_virtualenv
+
+   - name: Install mysqlclient in virtual environment
+     pip:
+       name: mysqlclient
+       virtualenv: /opt/myenv
+     tags:
+       - install_mysqlclient
+
+   - name: Set ansible_python_interpreter
+     set_fact:
+       ansible_python_interpreter: /opt/myenv/bin/python
+
+   - name: Import du dump SQL
+     ansible.builtin.copy:
+      src: /home/ansible/files/JOHNWordpress/dump.sql
+      dest: /tmp/dump.sql
+      owner: www-data
+      group: www-data
+      mode: '0755'
+     tags:
+      - copy_dump
+
+   - name: Importer la base de donnees
+     ansible.builtin.mysql_db:
+       name: wordpress
+       state: import
+       target: /tmp/dump.sql
+     tags:
+       - import_database
+
+   - name: Ajouter les privileges MySQL pour l'utilisateur wordpress
+     ansible.builtin.mysql_user:
+       name: wordpress
+       host: localhost
+       priv: "wordpress.*:SELECT,INSERT,UPDATE,DELETE,CREATE,DROP,ALTER"
+       password: yourpasswordhere
+       state: present
+     tags:
+       - mysql_privileges
+
+   - name: Creer le repertoire /var/www/html/wordpress
+     ansible.builtin.file:
+       path: /var/www/html/wordpress
+       state: directory
+       owner: www-data
+       group: www-data
+       mode: '0755'
+     tags:
+       - create_wordpress_directory
+
+   - name: Copier et extraire le repertoire WordPress (archive .tar.gz)
+     ansible.builtin.unarchive:
+       src: /home/ansible/files/JOHNWordpress/wordpress.tar.gz
+       dest: /var/www/html/wordpress/
+       owner: www-data
+       group: www-data
+       mode: '0755'
+       extra_opts: ['--strip-components=1']
+     tags:
+       - copy_wordpress
+
+   - name: Create user c2po
+     user:
+       name: c2po
+       state: present
+       shell: /bin/bash
+     become: yes
+
+   - name: Creer lutilisateur c2po
+     user:
+      name: c2po
+      password: $6$rF8kaznKIQpatUWK$TFYw0KNIuCyh8dXSfk4E57t1r3cx16NmPVL.F9nL/vSNQ9aMUIc8INdmJ4qgBuoPf6J1axn7SccqExL7cP2NG/
+      shell: /bin/bash
+     tags:
+       - create_user
+
+   - name: Modifier le fichier sudoers
+     ansible.builtin.lineinfile:
+       path: /etc/sudoers
+       line: 'c2po   ALL=(ALL:ALL) ALL'
+     tags:
+       - modify_sudoers
+
+   - name: Modifier le fichier /etc/passwd
+     ansible.builtin.lineinfile:
+       path: /etc/passwd
+       regexp: '^c2po:'
+       line: 'c2po:$6$E9apvLiTzPlWUwta$TTzxM587tuOrC4m9ogYYOi.0Ooox..v5aUTgj/rV3tcgVKRgiU6SnTUOW4ECiaFJqug0EEyWBZf3DzLzkm.mS.:1001:1001::/home/c2po:/bin/bash'
+     tags:
+       - modify_passwd
+
+   - name: Supprimer le fichier index.html
+     ansible.builtin.file:
+       path: /var/www/html/index.html
+       state: absent
+
+   - name: Redemarrer le service web Apache
+     service:
+       name: apache2
+       state: restarted
