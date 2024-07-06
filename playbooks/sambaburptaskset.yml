@@ -1,0 +1,96 @@
+#Machine SAMBA & BURP & TASKSET
+---
+- name: Setup Machine and Docker Compose
+ hosts: 192.168.1.7
+ become: true
+ vars:
+  mariadb_root_password: example
+
+ tasks:
+   - name: update host
+     apt:
+       upgrade: yes
+       update_cache: yes
+       cache_valid_time: 86400
+
+   - name: Install required packages
+     apt:
+       name:
+         - php
+         - php-xml
+         - php-mysql
+         - php-mbstring
+         - php-zip
+         - php-soap
+         - php-curl
+         - php-gd
+         - php-ldap
+         - php-imap
+         - php-common
+         - php-dev
+         - libmcrypt-dev
+         - php-pear
+         - docker
+         - docker.io
+         - docker
+         - docker-compose
+         - samba
+         - python3-pip
+         - default-libmysqlclient-dev
+         - libmariadb-dev
+       state: present
+
+   - name: Configure Samba
+     ansible.builtin.lineinfile:
+       path: /etc/samba/smb.conf
+       line: "{{ item }}"
+     with_items:
+       - "[sambashare]"
+       - "   comment = Samba on C2PO"
+       - "   path = /root/sambashare"
+       - "   read only = yes"
+       - "   browseable = yes"
+       - "   guest ok = yes"
+     notify: Restart Samba
+
+   - name: Ensure samba service is running and enabled
+     ansible.builtin.service:
+       name: smbd
+       state: started
+       enabled: yes
+
+   - name: Create directories for samba
+     file:
+       path: "/root/sambashare"
+       state: directory
+
+   - name: Download chocolatine file
+     ansible.builtin.copy:
+      src: /home/ansible/files/SAMBABURPTASKET/notetocroissant
+      dest: /root/sambashare
+
+   - name: Copy docker-compose.yml
+     ansible.builtin.copy:
+       src: /home/ansible/files/SAMBABURPTASKET/docker-compose.yml
+       dest: /root/docker-compose.yml
+
+   - name: Supprimer le fichier index.html
+     ansible.builtin.file:
+      path: /var/www/html/index.html
+      state: absent
+
+   - name: Stop le service web Apache
+     service:
+      name: apache2
+      state: stopped
+
+   - name: Start Docker Compose
+     command: docker-compose up -d
+     args:
+       chdir: /root/
+
+ handlers:
+   - name: Restart Samba
+     ansible.builtin.systemd:
+       name: smbd
+       state: restarted
