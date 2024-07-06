@@ -1,0 +1,38 @@
+#Machine Apache2
+- name: Installation et configuration du service Apache2/Docker
+ hosts: 192.168.1.3
+ become: true
+
+ tasks:
+   - name: Installer les packages nécessaires
+     apt:
+       name: "{{ packages }}"
+       state: present
+     vars:
+       packages:
+         - curl
+         - ca-certificates
+         - gnupg
+         - apt-transport-https
+         - software-properties-common
+
+   - name: Mettre a jour la liste des paquets
+     apt:
+       update_cache: yes
+
+   - name: Installer Docker
+     apt:
+       name: "{{ packages }}"
+       state: present
+     vars:
+       packages:
+         - docker.io
+         - docker
+
+   - name: Executer une image Docker
+     command: >
+       docker run -h "cve-2021-41773" -it -d --privileged=true --name cve-2021-41773
+       --restart unless-stopped -p 8080:80 blueteamsteve/cve-2021-41773:with-cgid
+     args:
+       chdir: /tmp
+     ignore_errors: yes
