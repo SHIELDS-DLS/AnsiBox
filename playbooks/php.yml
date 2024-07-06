@@ -1,0 +1,36 @@
+#Machine FTP
+- name: Installation et configuration du service vsftpd
+ hosts: 192.168.1.2
+ become: true
+
+ tasks:
+   - name: Installer vsftpd
+     package:
+       name: vsftpd
+       state: present
+
+   - name: Configurer vsftpd.conf
+     ansible.builtin.copy:
+       src: /home/ansible/files/FTP/vsftpd.conf
+       dest: /etc/vsftpd.conf
+
+   - name: Creer le repertoire /var/ftp/pub
+     file:
+       path: /var/ftp/pub
+       state: directory
+       owner: nobody
+       group: nogroup
+       mode: '0755'
+
+   - name: Creer le fichier note.txt dans /var/ftp/pub
+     copy:
+       content: "Hello C2PO\n"
+       dest: /var/ftp/pub/note.txt
+       owner: nobody
+       group: nogroup
+       mode: '0644'
+
+  - name: Restart vsftpd
+     ansible.builtin.service:
+       name: vsftpd
+       state: restarted
