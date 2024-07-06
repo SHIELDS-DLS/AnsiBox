@@ -4,10 +4,10 @@
  vars:
    # API vars
    proxmox_api_user: 'mletot@pve'
-   proxmox_api_password: '10bf1f7a-9141-46b0-aaff-a3cf793ea8ac'
+   proxmox_api_password: 'XXXXXXXXXXXXXXXXXX'
    proxmox_api_host: '172.16.28.230'
    proxmox_api_port: '8006'
-   proxmox_api_jeton: 'jetonapiansible'
+   proxmox_api_jeton: 'XXXXXXXXXXXXXXXXXX'
    # Proxmox vars
    proxmox_vm_node: 'proxmox'
    proxmox_storage: 'local_lvm'
