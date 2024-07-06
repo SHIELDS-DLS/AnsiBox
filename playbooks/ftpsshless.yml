@@ -1,0 +1,77 @@
+#Machine FTP & SSH & LESS - FTPSSH
+---
+- name: Setup Machine
+ hosts: 192.168.1.10
+ become: true
+
+ tasks:
+   - name: update host
+     apt:
+       upgrade: yes
+       update_cache: yes
+       cache_valid_time: 86400
+
+   - name: Install required packages
+     apt:
+       name:
+         - apache2
+         - ftp
+         - vsftpd
+         - sudo
+       state: present
+
+   - name: Create users
+     ansible.builtin.user:
+       name: "{{ item }}"
+       state: present
+       createhome: yes
+       shell: /bin/bash
+     loop:
+       - amy
+       - holt
+       - jake
+
+   - name: Set password for jake user
+     ansible.builtin.user:
+       name: jake
+       password: "$6$T2ml78oucM6WQ/vu$6iBAJGhyWDfTLyUwnvP1twy/JwK5sLmyM7ot8CI4IaTM1e7243VJ8GCaMFJtm09yMax94Cgsl8eySaedvfopw."
+       update_password: always
+
+   - name: Configure /etc/sudoers
+     ansible.builtin.blockinfile:
+       path: /etc/sudoers
+       marker: "# {mark} ANSIBLE MANAGED BLOCK {{ item }}"
+       block: "{{ item }}"
+     loop:
+       - "jake    ALL=(ALL) NOPASSWD:/usr/bin/less"
+       - "holt    ALL=(ALL) NOPASSWD:/bin/nano"
+
+   - name: Configure /etc/vsftpd.conf
+     ansible.builtin.copy:
+       src: /home/ansible/files/FTPSSHLESS/vsftpd.conf
+       dest: /etc/vsftpd.conf
+
+   - name: Create FTP directory
+     ansible.builtin.file:
+       path: /var/ftp/pub
+       state: directory
+       owner: nobody
+       group: nogroup
+
+   - name: Add content to FTP directory
+     ansible.builtin.copy:
+       content: |
+         Users of the system :
+         Ray Holt - holt
+         Amy Santiago - amy
+         Jake Peralta - jake
+       dest: /var/ftp/pub/users
+       owner: nobody
+       group: nogroup
+       mode: '0644'
+
+   - name: Restart vsftpd service
+     ansible.builtin.systemd:
+       name: vsftpd
+       state: restarted
+       enabled: yes
