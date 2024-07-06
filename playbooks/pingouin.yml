@@ -1,0 +1,190 @@
+#PINGOUIN
+---
+- hosts: 192.168.1.11
+
+ tasks:
+   - name: update host
+     apt:
+       upgrade: yes
+       update_cache: yes
+       cache_valid_time: 86400
+
+   - name: Install Redis
+     apt:
+       name: redis-server
+       update_cache: yes
+       state: present
+     become: yes
+
+   - name: Enable and Start Redis service
+     systemd:
+       name: redis-server
+       enabled: yes
+       state: started
+     become: yes
+
+   - name: Update Redis configuration
+     replace:
+      path: /etc/redis/redis.conf
+      regexp: '^bind 127.0.0.1 ::1'
+      replace: 'bind 0.0.0.0'
+     notify: Restart redis
+     become: yes
+
+   - name: Install required packages
+     apt:
+       name: "{{ item }}"
+       update_cache: yes
+       state: present
+     become: yes
+     loop:
+       - nodejs
+       - npm
+       - apache2
+       - samba
+
+   - name: Add Apache Directory configuration
+     blockinfile:
+       path: /etc/apache2/apache2.conf
+       block: |
+         <Directory /var/www/html/shields>
+            Options Indexes FollowSymLinks
+            AllowOverride None
+            Require all granted
+         </Directory>
+     become: yes
+
+   - name: Allow root login via SSH
+     lineinfile:
+       path: /etc/ssh/sshd_config
+       regexp: '^PermitRootLogin'
+       line: 'PermitRootLogin yes'
+     notify: Restart SSH
+     become: yes
+
+   - name: Copy 'shields' directory to /var/www/html
+     ansible.builtin.copy:
+      src: /home/ansible/files/PINGOUIN/shields
+      dest: /var/www/html/
+     become: yes
+
+
+   - name: Creer l'utilisateur ansible
+     ansible.builtin.user:
+       name: ansible
+       password: "$6$byQ8uGKvwUdZKsCo$lBD6Z4XIfRoG5NyV36wfDOzjvNFvfuQgwvpZlnLNdT1gwBA.l83pB44Wkg7GFJ7GwgSlsiKy6q4gfF.hNIY3m1" #transorbital1
+        shell: /bin/bash
+     tags:
+       - create_admin_user
+
+   - name: Copy archive from remote machine
+     ansible.builtin.unarchive:
+       src: /home/ansible/files/PINGOUIN/archi.tar.gz
+       dest: /home/ansible
+     become: yes
+
+   - name: Install Node.js packages
+     npm:
+       name: "{{ item }}"
+       state: present
+       path: /home/ansible/PINGOUIN/
+     become: yes
+     loop:
+       - express
+       - express-session
+       - connect-redis
+       - redis@2.8.0
+       - passport
+       - passport-local
+       - ejs
+
+   - name: Install PM2 globally
+     npm:
+       name: pm2
+       global: yes
+     become: yes
+
+   - name: Create and start Node.js application
+     shell: pm2 start index.js -f
+     become: yes
+     args:
+       chdir: /home/ansible/PINGOUIN/
+
+   - name: Add user 'carol'
+     user:
+       name: carol
+       createhome: yes
+       shell: /bin/bash
+     become: yes
+
+   - name: Set password for user 'carol'
+     user:
+       name: carol
+       password: "{{ 'archer_mentealeau' | password_hash('sha512') }}"
+     become: yes
+
+   - name: Set password for user 'root'
+     user:
+       name: root
+       password: "{{ 'SJmf80Y3IbsVrLIUiFri' | password_hash('sha512') }}"
+     become: yes
+
+   - name: Copy hard flag to root
+     copy:
+        src: /home/ansible/files/PINGOUIN/flaghard.txt
+        dest: /root
+     become: yes
+
+   - name: Copy medium flag to carol
+     copy:
+        src: /home/ansible/files/PINGOUIN/flagmedium.txt
+        dest: /home/carol/
+     become: yes
+
+   - name: Copy medium zip to carol
+     copy:
+        src: /home/ansible/files/PINGOUIN/papapingouin.zip
+        dest: /home/carol/
+     become: yes
+
+   - name: Configure Samba
+     lineinfile:
+       path: /etc/samba/smb.conf
+       regexp: "^\\[Antarctique\\]"
+       line: |
+         [Antarctique]
+         comment = Antarctique forever with my friends
+         path = /home/ansible/antarctique
+         read only = yes
+         browsable = yes
+         guest ok = yes
+     become: yes
+
+   - name: Copy antarctique to remote machine
+     copy:
+      src: /home/ansible/files/PINGOUIN/antarctique
+      dest: /home/ansible/
+     become: yes
+
+   - name: Copy Redis script to remote machine
+     copy:
+      src: /home/ansible/files/PINGOUIN/redisfile
+      dest: /home/ansible/
+     become: yes
+
+   - name: Load data into Redis
+     shell: "redis-cli < redisfile"
+     args:
+       chdir: /home/ansible
+     become: yes
+
+ handlers:
+   - name: Restart SSH
+     service:
+       name: sshd
+       state: restarted
+   - name: Restart Redis
+     systemd:
+       name: redis-server
+       state: restarted
+     become: yes
