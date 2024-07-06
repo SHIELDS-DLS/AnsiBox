@@ -1,0 +1,57 @@
+- name: Create multiple Proxmox LXC
+ hosts: 172.16.28.230
+ gather_facts: true
+ vars:
+   # API vars
+   proxmox_api_user: 'mletot@pve'
+   proxmox_api_password: '10bf1f7a-9141-46b0-aaff-a3cf793ea8ac'
+   proxmox_api_host: '172.16.28.230'
+   proxmox_api_port: '8006'
+   proxmox_api_jeton: 'jetonapiansible'
+   # Proxmox vars
+   proxmox_vm_node: 'proxmox'
+   proxmox_storage: 'local_lvm'
+   # LXC names
+   lxc_names:
+     - FTP
+     - Apache2
+     - PHP-Nice
+     - John-Wordpress
+     - SQL-Knocking
+     - SAMBA-BURP-TASKSET
+     - Webmin
+     - TOMCAT-GPG-ZIP
+     - FTP-SSH-LESS
+     - Pingouin
+
+ tasks:
+   - name: Clone Proxmox LXC
+     community.general.proxmox:
+       vmid: "{{ 201 + idx }}"  # VM ID starting from 201
+       node: "{{ proxmox_vm_node }}"
+       api_user: "{{ proxmox_api_user }}"
+       api_token_secret: "{{ proxmox_api_password }}"
+       api_host: "{{ proxmox_api_host }}"
+       clone: '104'  # Template ID
+       hostname: "{{ item }}"
+       storage: "{{ proxmox_storage }}"
+       api_token_id: "{{ proxmox_api_jeton }}"
+     loop: "{{ lxc_names }}"
+     loop_control:
+       index_var: idx
+
+   - name: Give Network Proxmox LXC
+     community.general.proxmox:
+       vmid: "{{ 201 + idx }}"  # VM ID starting from 201
+       node: "{{ proxmox_vm_node }}"
+       api_user: "{{ proxmox_api_user }}"
+       api_token_secret: "{{ proxmox_api_password }}"
+       api_host: "{{ proxmox_api_host }}"
+       hostname: "{{ item }}"
+       storage: "{{ proxmox_storage }}"
+       api_token_id: "{{ proxmox_api_jeton }}"
+       netif: '{"net0": "name=eth0,gw=192.168.1.254,ip=192.168.1.{{ 2 + idx }}/24,bridge=vmbr1"}'
+       update: true
+     loop: "{{ lxc_names }}"
+     loop_control:
+       index_var: idx
