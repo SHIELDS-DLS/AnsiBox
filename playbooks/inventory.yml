@@ -1,0 +1,15 @@
+all:
+ hosts:
+   192.168.1.2: #ftp
+  192.168.1.3: #apache2
+   192.168.1.4: #php
+   192.168.1.5: #john
+   192.168.1.6: #sqlinject
+   192.168.1.7: #samba
+   192.168.1.8: #webmin
+   192.168.1.9: #tomcat
+   192.168.1.10: #ftpsshless
+   192.168.1.11: #pingouin
+ vars:
+   ansible_connection: ssh
+   ansible_user: root
