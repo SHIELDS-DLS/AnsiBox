@@ -1,0 +1,54 @@
+#Machine Webmin
+---
+- name: Install Apache, Python, Webmin, and UFW
+ hosts: 192.168.1.8
+ become: true
+
+ tasks:
+
+   - name: Add Python repository
+     apt_repository:
+       repo: "deb http://deb.debian.org/debian bullseye main"
+       repo: "deb-src http://deb.debian.org/debian bullseye main"
+       state: present
+
+   - name: update host
+     apt:
+       upgrade: yes
+       update_cache: yes
+       cache_valid_time: 86400
+
+   - name: Install Apache
+     apt:
+       name: apache2
+       state: present
+
+   - name: Install Python 2.7
+     apt:
+       name: python2.7
+       state: present
+
+   - name: Copy Webmin package
+     ansible.builtin.copy:
+       src: /home/ansible/files/Webmin/webmin_1.890_all.deb
+       dest: /tmp/webmin_1.890_all.deb
+
+   - name: Install Webmin
+     apt:
+       deb: /tmp/webmin_1.890_all.deb
+       state: present
+
+   - name: Install UFW
+     apt:
+       name: ufw
+       state: present
+
+   - name: Start Apache service
+     ansible.builtin.service:
+       name: apache2
+       state: started
+
+   - name: Start Webmin service
+     ansible.builtin.service:
+       name: webmin
+       state: started
