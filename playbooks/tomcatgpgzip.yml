@@ -1,0 +1,83 @@
+#Machine TOMCAT & GPG & ZIP
+---
+- name: Install JDK, Tomcat, and Create Users
+ hosts: 192.168.1.9
+ become: true
+
+ tasks:
+   - name: update host
+      apt:
+       upgrade: yes
+       update_cache: yes
+       cache_valid_time: 86400
+
+
+   - name: Install default-jdk and zip packages
+     apt:
+       name:
+         - default-jdk
+         - zip
+         - sudo
+       state: present
+
+   - name: Create user Merlin
+     ansible.builtin.user:
+       name: merlin
+       createhome: yes
+       password: $6$1tvMa5.JX7yV5fhf$ZwnCP7Y84nl/ZnhAdg/rZtGYvwz56IDmTcitIFSunASXasQzLDjCXDCVxZvTxlgO9nHpvmi8LtCeHSuV3ZnBf1
+       shell: /bin/bash
+
+   - name: Download Apache Tomcat
+     ansible.builtin.copy:
+       src: /home/ansible/files/TOMCATGPGZIP/apache-tomcat-9.0.30.tar.gz
+       dest: /tmp/apache-tomcat-9.0.30.tar.gz
+
+   - name: Extract Apache Tomcat to /opt
+     ansible.builtin.unarchive:
+       src: /tmp/apache-tomcat-9.0.30.tar.gz
+       dest: /opt/
+       remote_src: yes
+
+   - name: Rename Tomcat directory
+     ansible.builtin.command: mv /opt/apache-tomcat-9.0.30 /opt/tomcat
+
+   - name: Set permissions on /opt/tomcat directory
+     ansible.builtin.file:
+       path: /opt/tomcat
+       owner: merlin
+       group: merlin
+       mode: '0755'
+       recurse: yes
+
+   - name: Start Tomcat
+     ansible.builtin.command: bash /opt/tomcat/bin/startup.sh
+     args:
+       chdir: /opt/tomcat/bin
+
+   - name: Create user Paul
+     ansible.builtin.user:
+       name: paul
+       createhome: yes
+       password: $6$sdvqzKtBLbuWhWaV$00lytLNnVWf7IvqFD5iz9sgcg7nF/zdc02h79vucRF7X21wyQSGttVK5u98myO.4efgtWSvS1rMd4McgnrAJ.0
+       shell: /bin/bash
+
+   - name: Add Merlin to sudoers
+     ansible.builtin.lineinfile:
+       path: /etc/sudoers
+       line: "merlin ALL=(root:root) NOPASSWD: /usr/bin/zip"
+
+   - name: Replace content between <description> tags
+     ansible.builtin.copy:
+       src: /home/ansible/files/TOMCATGPGZIP/web.xml
+       dest: /opt/tomcat/webapps/ROOT/WEB-INF/web.xml
+
+   - name: Download Apache Tomcat
+     ansible.builtin.copy:
+       src: /home/ansible/files/TOMCATGPGZIP/key.tar.gz
+       dest: /tmp/key.tar.gz
+
+   - name: Pull the keys on paul directory
+     ansible.builtin.unarchive:
+       src: /tmp/key.tar.gz
+       dest: /home/paul
+       remote_src: yes
