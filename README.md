@@ -9,6 +9,10 @@ The image below represent the box present inside the infrastructure and their co
 
 ![](./images/box.png)
 
+## Organizational part
+
+For the organizational part, the aim is for participants to organize themselves, elect a team leader and report back on their analyses.
+
 ## Supervision
 
 The goal of the supervision is to watch the server, the box and the services running :
