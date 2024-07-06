@@ -1,4 +1,4 @@
 # AnsiBox
 
-Notre projet consiste en un déploiement automatique via Ansible de "box" sur lesquelles pourra y être fait du blue teaming ainsi que du red teaming. Ce projet pourra être utilisé sous forme de mise en situation de gestion de crise (exemple : exercice DEFNET école ou Locked SHIELDS).
+Our project involves the automatic deployment via Ansible of "boxes" on which blue teaming and red teaming can be performed. This project can be used as a crisis management exercise (e.g. DEFNET school exercise or Locked SHIELDS).
 
